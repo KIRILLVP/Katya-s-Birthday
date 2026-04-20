@@ -113,6 +113,7 @@
 </div>
 
 <script>
+    // Загрузка принятых поздравлений
     async function loadWishes() {
         try {
             const res = await fetch('/api/wishes');
@@ -127,15 +128,7 @@
             list.innerHTML = data.map(w => `
                 <div class="wish-card">
                     <strong>${w.name}:</strong><br>${w.text}
-                    <div class="meta">
-                        ${new Date(w.created_at).toLocaleString('ru-RU', {
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })}
-                    </div>
+                    <div class="meta">${new Date(w.created_at).toLocaleString('ru-RU', {day: 'numeric', month: 'long', year: 'numeric'})}</div>
                 </div>
             `).join('');
         } catch (err) {
@@ -143,6 +136,7 @@
         }
     }
 
+    // Отправка нового пожелания
     async function sendWish() {
         const nameInput = document.getElementById('name');
         const textInput = document.getElementById('text');
@@ -153,6 +147,7 @@
 
         if(!name || !text) return alert("Заполни все поля!");
 
+        // Блокировка кнопки (Защита от дублей)
         btn.disabled = true;
         btn.innerText = "Отправляем...";
 
@@ -168,16 +163,18 @@
                 nameInput.value = '';
                 textInput.value = '';
             } else {
-                alert("Ошибка сервера.");
+                alert("Ошибка сервера. Попробуй позже.");
             }
         } catch (err) {
-            alert("Не удалось отправить сообщение.");
+            alert("Не удалось отправить сообщение. Проверь интернет.");
         } finally {
+            // Разблокировка кнопки
             btn.disabled = false;
             btn.innerText = "Отправить поздравление ❤️";
         }
     }
 
+    // Секретная комбинация: Ctrl + Shift + K
     window.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.shiftKey && e.code === 'KeyK') {
             openAdmin();
@@ -187,6 +184,7 @@
     async function openAdmin() {
         const res = await fetch('/api/admin/pending');
         const data = await res.json();
+        
         document.getElementById('admin-panel').style.display = 'block';
         document.getElementById('overlay').style.display = 'block';
         
@@ -214,8 +212,8 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id, action})
             });
-            openAdmin();
-            loadWishes();
+            openAdmin(); // Обновить список в админке
+            loadWishes(); // Обновить список на главной
         } catch (err) {
             alert("Ошибка при модерации");
         }
@@ -226,6 +224,7 @@
         document.getElementById('overlay').style.display = 'none'; 
     }
 
+    // Начальная загрузка
     loadWishes();
 </script>
 </body>
