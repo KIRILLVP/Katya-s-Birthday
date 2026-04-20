@@ -87,7 +87,7 @@
 </head>
 <body>
 
-<audio id="bgMusic" src="music.wav" loop></audio>
+<audio id="bgMusic" src="music.wav" preload="auto"></audio>
 
 <div class="overlay" id="overlay" onclick="closeAdmin()"></div>
 
@@ -115,15 +115,28 @@
 </div>
 
 <script>
-    // ВКЛЮЧЕНИЕ МУЗЫКИ ПРИ ПЕРВОМ КЛИКЕ
-    document.body.addEventListener('click', () => {
-        const music = document.getElementById('bgMusic');
-        if (music.paused) {
-            music.play().catch(e => console.log("Музыка ждет взаимодействия"));
-        }
-    }, { once: true });
+    // --- БЛОК МУЗЫКИ ---
+    const music = document.getElementById('bgMusic');
 
-    // Загрузка поздравлений (с датой и временем)
+    const startMusic = () => {
+        music.play()
+            .then(() => {
+                console.log("Музыка успешно запущена!");
+                // Удаляем слушателей, чтобы не запускать повторно при каждом клике
+                ['click', 'touchstart', 'keydown'].forEach(e => document.removeEventListener(e, startMusic));
+            })
+            .catch(err => console.log("Браузер всё еще блокирует звук. Нужно действие пользователя."));
+    };
+
+    // Слушаем любое действие для старта
+    ['click', 'touchstart', 'keydown'].forEach(e => document.addEventListener(e, startMusic));
+
+    // Проверка на ошибку файла
+    music.onerror = () => {
+        console.error("Ошибка: Файл music.wav не найден. Проверь регистр букв на GitHub!");
+    };
+
+    // --- БЛОК ПОЗДРАВЛЕНИЙ ---
     async function loadWishes() {
         try {
             const res = await fetch('/api/wishes');
@@ -154,7 +167,6 @@
         }
     }
 
-    // Отправка нового пожелания
     async function sendWish() {
         const nameInput = document.getElementById('name');
         const textInput = document.getElementById('text');
@@ -180,18 +192,17 @@
                 nameInput.value = '';
                 textInput.value = '';
             } else {
-                const errorText = await response.text();
-                alert("Ошибка сервера: " + errorText);
+                alert("Ошибка сервера.");
             }
         } catch (err) {
-            alert("Проблема с сетью. Проверь интернет или Render.");
+            alert("Не удалось отправить сообщение.");
         } finally {
             btn.disabled = false;
             btn.innerText = "Отправить поздравление ❤️";
         }
     }
 
-    // Секретная комбинация: Ctrl + Shift + K
+    // Админка
     window.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.shiftKey && e.code === 'KeyK') {
             openAdmin();
@@ -201,16 +212,13 @@
     async function openAdmin() {
         const res = await fetch('/api/admin/pending');
         const data = await res.json();
-        
         document.getElementById('admin-panel').style.display = 'block';
         document.getElementById('overlay').style.display = 'block';
-        
         const list = document.getElementById('pending-list');
         if (!data || data.length === 0) {
             list.innerHTML = "<p>Новых сообщений нет.</p>";
             return;
         }
-
         list.innerHTML = data.map(w => `
             <div class="admin-item">
                 <p><strong>${w.name}</strong>: ${w.text}</p>
@@ -224,15 +232,13 @@
 
     async function moderate(id, action) {
         try {
-            const res = await fetch('/api/admin/action', {
+            await fetch('/api/admin/action', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({id, action})
             });
-            if (res.ok) {
-                openAdmin(); 
-                loadWishes();
-            }
+            openAdmin();
+            loadWishes();
         } catch (err) {
             alert("Ошибка при модерации");
         }
