@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="icon.png">
+    <title>С днем рождения, Катя!</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff5f7; color: #5a4a4a; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 600px; width: 100%; text-align: center; }
+        header img { width: 120px; border-radius: 50%; border: 4px solid #ffc1d1; margin-bottom: 10px; }
+        h1 { color: #ff6b8d; }
+        .form-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        input, textarea { width: 90%; padding: 12px; margin: 8px 0; border: 2px solid #ffe0e9; border-radius: 12px; outline: none; }
+        button { background: #ff6b8d; color: white; border: none; padding: 12px 30px; border-radius: 25px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #ff4771; transform: scale(1.05); }
+        .wish-card { background: white; padding: 15px; margin: 15px 0; border-radius: 15px; border-left: 5px solid #ffc1d1; text-align: left; transition: 0.3s; position: relative; }
+        .wish-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(255, 107, 141, 0.15); }
+        .meta { font-size: 0.8em; color: #a08d8d; margin-top: 10px; }
+        #admin-panel { display: none; background: #f0f0f0; padding: 20px; border-radius: 10px; position: fixed; top: 10%; z-index: 100; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 100px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <img src="icon.png" alt="Happy Birthday">
+        <h1>Для любимой Кати!</h1>
+        <p>Привет! Это сайт для поздравлений Кати. Оставьте своё пожелание ниже, и оно появится на этой странице после нашей проверки!</p>
+    </header>
+
+    <div class="form-box">
+        <input type="text" id="name" placeholder="Твое имя" required>
+        <textarea id="text" rows="4" placeholder="Твоё поздравление для Кати..." required></textarea>
+        <button onclick="sendWish()">Отправить поздравление ❤️</button>
+    </div>
+
+    <div id="wishes-list"></div>
+</div>
+
+<div id="admin-panel">
+    <h2>Модерация (Секретная зона)</h2>
+    <div id="pending-list"></div>
+    <button onclick="closeAdmin()">Закрыть</button>
+</div>
+
+<script>
+    // Загрузка поздравлений
+    async function loadWishes() {
+        const res = await fetch('/api/wishes');
+        const data = await res.json();
+        document.getElementById('wishes-list').innerHTML = data.map(w => `
+            <div class="wish-card">
+                <strong>${w.name}:</strong><br>${w.text}
+                <div class="meta">${new Date(w.created_at).toLocaleString('ru-RU', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</div>
+            </div>
+        `).join('');
+    }
+
+    async function sendWish() {
+        const name = document.getElementById('name').value;
+        const text = document.getElementById('text').value;
+        if(!name || !text) return alert("Заполни все поля!");
+        
+        await fetch('/api/wish', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, text})
+        });
+        alert("Твое сообщение отправлено! Мы проверим его и скоро оно появится здесь.");
+        document.getElementById('name').value = '';
+        document.getElementById('text').value = '';
+    }
+
+    // Секретная комбинация: Ctrl + Shift + K
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.code === 'KeyK') {
+            openAdmin();
+        }
+    });
+
+    async function openAdmin() {
+        const res = await fetch('/api/admin/pending');
+        const data = await res.json();
+        document.getElementById('admin-panel').style.display = 'block';
+        document.getElementById('pending-list').innerHTML = data.map(w => `
+            <div style="border-bottom: 1px solid #ccc; padding: 10px;">
+                <p><strong>${w.name}</strong>: ${w.text}</p>
+                <button onclick="moderate('${w.id}', 'approve')">Принять</button>
+                <button style="background:gray" onclick="moderate('${w.id}', 'delete')">Удалить</button>
+            </div>
+        `).join('');
+    }
+
+    async function moderate(id, action) {
+        await fetch('/api/admin/action', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id, action})
+        });
+        openAdmin();
+        loadWishes();
+    }
+
+    function closeAdmin() { document.getElementById('admin-panel').style.display = 'none'; }
+    loadWishes();
+</script>
+</body>
+</html>
